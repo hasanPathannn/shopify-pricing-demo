@@ -1,0 +1,76 @@
+<div class="zip-pricing-widget" style="margin: 20px 0; padding: 15px; border: 1px solid #e2e2e2; border-radius: 5px; background: #fafafa;">
+    <label for="zip-code-input" style="display:block; margin-bottom: 8px;"><strong>Check Local Pricing</strong></label>
+    <div style="display: flex; gap: 10px;">
+        <input type="text" id="zip-code-input" placeholder="Enter ZIP (e.g. 75028)" style="padding: 10px; border: 1px solid #ccc; border-radius: 4px; flex-grow: 1;">
+        <button type="button" id="check-price-btn" style="padding: 10px 20px; background-color: #000; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">Check Price</button>
+    </div>
+    <p id="zip-price-result" style="margin-top: 10px; font-weight: bold; color: #2e8b57; display: none;"></p>
+    <p id="zip-price-error" style="margin-top: 10px; color: #d9534f; display: none;"></p>
+</div>
+
+<script>
+document.getElementById('check-price-btn').addEventListener('click', async function() {
+    const zipCode = document.getElementById('zip-code-input').value;
+    const resultEl = document.getElementById('zip-price-result');
+    const errorEl = document.getElementById('zip-price-error');
+    const btn = document.getElementById('check-price-btn');
+    
+    // Grab Shopify product ID dynamically using Liquid
+    const productId = "{{ product.id }}"; 
+
+    resultEl.style.display = 'none';
+    errorEl.style.display = 'none';
+
+    if (!zipCode) {
+        errorEl.innerText = "Please enter a ZIP code.";
+        errorEl.style.display = 'block';
+        return;
+    }
+
+    // UX improvement: Loading state
+    btn.innerText = "Checking...";
+    btn.disabled = true;
+
+    try {
+        
+        const apiUrl = " https://shopify-pricing-demo.onrender.com/api/get-price";
+
+        const response = await fetch(apiUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'ngrok-skip-browser-warning': 'true'
+            },
+            body: JSON.stringify({
+                zip_code: zipCode,
+                product_id: productId
+            })
+        });
+
+        if (!response.ok) throw new Error("Network error");
+
+        const data = await response.json();
+
+        if (data.status === 'success') {
+            const formattedPrice = `$${data.price.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            
+            // 1. Show message in widget
+            resultEl.innerText = `Price for ZIP ${data.zip_code}: ${formattedPrice}`;
+            resultEl.style.display = 'block';
+
+            // 2. Dynamically update the main Shopify price on the page
+            const mainPriceElements = document.querySelectorAll('.price-item--regular');
+            mainPriceElements.forEach(el => {
+                el.innerText = formattedPrice;
+            });
+        }
+    } catch (error) {
+        console.error("API Error:", error);
+        errorEl.innerText = "Error calculating price. Check backend connection.";
+        errorEl.style.display = 'block';
+    } finally {
+        btn.innerText = "Check Price";
+        btn.disabled = false;
+    }
+});
+</script>
